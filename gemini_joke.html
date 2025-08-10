@@ -1,0 +1,110 @@
+<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Silly Joke Generator</title>
+    <!-- Use Tailwind CSS for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center">
+
+    <div class="container bg-white shadow-xl rounded-2xl p-8 max-w-lg w-full flex flex-col items-center justify-center space-y-8 m-4">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 text-center">
+            Silly Joke Generator
+        </h1>
+
+        <!-- Joke display area -->
+        <div id="joke-output" class="text-xl md:text-2xl text-gray-600 italic text-center p-6 border-2 border-dashed border-gray-300 rounded-xl w-full">
+            Click the button to hear a joke!
+        </div>
+
+        <!-- Loading indicator -->
+        <div id="loading-indicator" class="hidden text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+            <p class="mt-2 text-gray-600">Generating...</p>
+        </div>
+
+        <!-- Button to generate joke -->
+        <button id="generate-button" class="px-8 py-4 bg-purple-600 text-white font-bold text-lg rounded-full shadow-lg hover:bg-purple-700 transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-purple-300 transform active:scale-95">
+            Tell me a joke!
+        </button>
+    </div>
+
+    <script>
+        const generateButton = document.getElementById('generate-button');
+        const jokeOutput = document.getElementById('joke-output');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // This function will fetch a joke from the Gemini API with a retry mechanism
+        async function getJoke() {
+            // Show loading indicator and disable the button
+            loadingIndicator.classList.remove('hidden');
+            jokeOutput.textContent = ''; // Clear previous joke
+            generateButton.disabled = true;
+
+            const prompt = "Tell me a short, silly joke.";
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            const apiKey = ""; // Canvas will automatically provide an API key if this is an empty string
+            const apiUrl = https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey};
+
+            const maxRetries = 3;
+            const initialDelay = 1000; // 1 second
+
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(HTTP error! status: ${response.status});
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 &&
+                        result.candidates[0].content && result.candidates[0].content.parts &&
+                        result.candidates[0].content.parts.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        jokeOutput.textContent = text;
+                        // Exit the loop on success
+                        return;
+                    } else {
+                        throw new Error("API response was unexpected or empty.");
+                    }
+                } catch (error) {
+                    console.error(Attempt ${i + 1} failed:, error);
+                    // If it's the last attempt, stop and show a final error message
+                    if (i === maxRetries - 1) {
+                        jokeOutput.textContent = "Sorry, all attempts to get a joke failed. Please try again later.";
+                        break;
+                    }
+                    // Wait for an exponentially increasing delay before retrying
+                    await new Promise(resolve => setTimeout(resolve, initialDelay * Math.pow(2, i)));
+                }
+            }
+
+            // Hide loading indicator and re-enable the button
+            loadingIndicator.classList.add('hidden');
+            generateButton.disabled = false;
+        }
+
+        // Add a click event listener to the button
+        generateButton.addEventListener('click', getJoke);
+    </script>
+</body>
+</html>
